@@ -46,7 +46,7 @@ Office.onReady((info: Office.HostReadyInfo) => {
     if (getSlideMetadataButton) {
       getSlideMetadataButton.onclick = () => tryCatch(getSlideMetadata);
     }
-    // TODO8: Assign event handlers for add-slides and the four navigation buttons.
+
     const addSlidesButton = document.getElementById("add-slides") as HTMLButtonElement | null;
     if (addSlidesButton) {
       addSlidesButton.onclick = () => tryCatch(addSlides);
