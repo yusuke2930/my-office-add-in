@@ -8,6 +8,7 @@
 import { base64Image } from "../../base64Image";
 // ↑ base64Image を定義しているファイルを正しいパスで import してください。
 // 例: export const base64Image = "data:image/png;base64, ...";
+import pptxgen from "pptxgenjs";
 
 // Office.js の型定義を使いたい場合は、@types/office-js をインストールし、
 // ついでに下記の import を入れると VSCode などで IntelliSense が利きやすくなります。
@@ -66,6 +67,12 @@ Office.onReady((info: Office.HostReadyInfo) => {
     const goToLastSlideButton = document.getElementById("go-to-last-slide") as HTMLButtonElement | null;
     if (goToLastSlideButton) {
       goToLastSlideButton.onclick = () => clearMessage(goToLastSlide);
+    }
+
+    //「Create PPTX from Message」ボタンにクリックイベントを設定
+    const createPptButton = document.getElementById("create-ppt-from-message") as HTMLButtonElement | null;
+    if (createPptButton) {
+      createPptButton.onclick = () => addSlideFromPpt();
     }
   }
 });
@@ -129,7 +136,6 @@ async function getSlideMetadata(): Promise<void> {
  * PowerPoint.run(...) を使うには、@types/office-js-preview 等が必要な場合があります。
  */
 async function addSlides(): Promise<void> {
-  // 例: エラーハンドリングは tryCatch(addSlides) 側で行っている想定
   await PowerPoint.run(async (context: any) => {
     context.presentation.slides.add();
     context.presentation.slides.add();
@@ -202,6 +208,28 @@ function goToNextSlide(): Promise<void> {
       }
     });
   });
+}
+
+/**
+ * PptxGenJS を使って、現在のスライドを base64 に変換し、追加する。
+ *
+ */
+async function addSlideFromPpt(): Promise<void> {
+  try {
+    await PowerPoint.run(async (context: any) => {
+      const pptx = new pptxgen();
+      const base64 = await pptx.write("base64");
+      context.presentation.insertSlidesFromBase64(base64, {
+        formatting: PowerPoint.InsertSlideFormatting.useDestinationTheme,
+      });
+      await context.sync();
+
+      await goToLastSlide(); // 追加後に最後のスライドに移動
+      setMessage("Success: pptx added.");
+    });
+  } catch (error: unknown) {
+    Rollbar.error("run", e);
+  }
 }
 
 /**
