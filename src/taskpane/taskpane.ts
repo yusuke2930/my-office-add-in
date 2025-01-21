@@ -79,6 +79,11 @@ Office.onReady((info: Office.HostReadyInfo) => {
     if (stockButton) {
       stockButton.onclick = () => tryCatch(addStockSlide);
     }
+
+    const insertLocalPptxButton = document.getElementById("insert-local-pptx") as HTMLButtonElement;
+    if (insertLocalPptxButton) {
+      insertLocalPptxButton.onclick = () => tryCatch(insertLocalPptx);
+    }
   }
 });
 
@@ -294,6 +299,47 @@ async function addStockSlide(): Promise<void> {
       Rollbar.error("addStockSlide failed", error);
     }
   }
+}
+
+/**
+ * プロジェクト内の PPTX を読み込み、現在のプレゼンにスライドを挿入する
+ */
+async function insertLocalPptx(): Promise<void> {
+  // 1. fetch() で PPTX を取得
+  const response = await fetch("../../assets/sample.pptx");
+  if (!response.ok) {
+    throw new Error(`Failed to load local PPTX: HTTP ${response.status}`);
+  }
+
+  // 2. ArrayBuffer を取得
+  const arrayBuffer = await response.arrayBuffer();
+
+  // 3. ArrayBuffer → Base64 変換
+  const base64 = arrayBufferToBase64(arrayBuffer);
+
+  // 4. insertSlidesFromBase64 (要プレビュー API, Insider 版など)
+  await PowerPoint.run(async (context) => {
+    context.presentation.insertSlidesFromBase64(base64, {
+      formatting: PowerPoint.InsertSlideFormatting.useDestinationTheme,
+    });
+    await context.sync();
+  });
+
+  setMessage("Local PPTX inserted successfully!");
+}
+
+/**
+ * ArrayBuffer を Base64 文字列に変換するヘルパー
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  // btoa() で Base64 エンコード
+  return btoa(binary);
 }
 
 /**
