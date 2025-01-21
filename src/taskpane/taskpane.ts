@@ -211,7 +211,7 @@ function goToNextSlide(): Promise<void> {
 }
 
 /**
- * PptxGenJS を使って、現在のスライドを base64 に変換し、追加する。
+ * PptxGenJS を使ってスライドを作成し、現在のプレゼンテーションに挿入する。
  *
  */
 async function addSlideFromPpt(): Promise<void> {
