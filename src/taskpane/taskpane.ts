@@ -74,6 +74,11 @@ Office.onReady((info: Office.HostReadyInfo) => {
     if (createPptButton) {
       createPptButton.onclick = () => tryCatch(addSlideFromPpt);
     }
+
+    const stockButton = document.getElementById("insert-stock-slide") as HTMLButtonElement;
+    if (stockButton) {
+      stockButton.onclick = () => tryCatch(addStockSlide);
+    }
   }
 });
 
@@ -229,6 +234,66 @@ async function addSlideFromPpt(): Promise<void> {
     });
     await context.sync();
   });
+}
+
+/**
+ * Alpha Vantage デモAPIから株価情報 (IBM) を取得 → PptxGenJSでスライド生成 → insertSlidesFromBase64
+ */
+async function addStockSlide(): Promise<void> {
+  try {
+    // 1. 株価情報 (IBM) の取得
+    // 公式ドキュメント: https://www.alphavantage.co/documentation/
+    // デモキーの場合: "demo"
+    const apiUrl = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=IBM&apikey=demo";
+    const response = await fetch(apiUrl);
+
+    if (!response.ok) {
+      throw new Error(`HTTP Error: ${response.status}`);
+    }
+    const data = await response.json();
+
+    // 2. JSON のパース: data["Global Quote"]["05. price"] など
+    const globalQuote = data["Global Quote"] || {};
+    const symbol = globalQuote["01. symbol"] || "IBM";
+    const price = globalQuote["05. price"] || "N/A";
+    const date = globalQuote["07. latest trading day"] || "N/A";
+
+    // 3. PptxGenJS でスライド作成
+    const pptx = new pptxgen();
+    const slide = pptx.addSlide();
+
+    // 表示するテキストを作成
+    const infoText = `Symbol: ${symbol}\nPrice: $${price}\nDate: ${date}`;
+    slide.addText(infoText, {
+      x: 0.5,
+      y: 0.5,
+      w: 9,
+      h: 2,
+      fontSize: 24,
+      color: "363636",
+      bold: true,
+      align: "left",
+    });
+
+    // 4. Base64 に変換
+    const base64 = await pptx.write("base64");
+
+    // 5. insertSlidesFromBase64 (プレビュー API: Windows Insider 版などで動作)
+    await PowerPoint.run(async (context) => {
+      context.presentation.insertSlidesFromBase64(base64, {
+        formatting: PowerPoint.InsertSlideFormatting.useDestinationTheme,
+      });
+      await context.sync();
+    });
+
+    setMessage("Stock slide inserted successfully!");
+  } catch (error) {
+    console.error("Error in addStockSlide:", error);
+    setMessage(`Error: ${String(error)}`);
+    if (typeof Rollbar !== "undefined" && Rollbar.error) {
+      Rollbar.error("addStockSlide failed", error);
+    }
+  }
 }
 
 /**
