@@ -14,7 +14,7 @@ import pptxgen from "pptxgenjs";
 // ついでに下記の import を入れると VSCode などで IntelliSense が利きやすくなります。
 // import "office-js";
 
-/* global document, Office, PowerPoint */
+/* global document, Office, PowerPoint, Rollbar */
 
 /**
  * Office が準備できたタイミングで呼ばれる。
@@ -72,7 +72,7 @@ Office.onReady((info: Office.HostReadyInfo) => {
     //「Create PPTX from Message」ボタンにクリックイベントを設定
     const createPptButton = document.getElementById("create-ppt-from-message") as HTMLButtonElement | null;
     if (createPptButton) {
-      createPptButton.onclick = () => addSlideFromPpt();
+      createPptButton.onclick = () => tryCatch(addSlideFromPpt);
     }
   }
 });
@@ -215,21 +215,20 @@ function goToNextSlide(): Promise<void> {
  *
  */
 async function addSlideFromPpt(): Promise<void> {
-  try {
-    await PowerPoint.run(async (context: any) => {
-      const pptx = new pptxgen();
-      const base64 = await pptx.write("base64");
-      context.presentation.insertSlidesFromBase64(base64, {
-        formatting: PowerPoint.InsertSlideFormatting.useDestinationTheme,
-      });
-      await context.sync();
+  const pptx = new pptxgen();
+  const slide1 = pptx.addSlide();
+  const buttonElement = document.getElementById("create-ppt-from-message") as HTMLElement | null;
+  slide1.addText(buttonElement.innerText, { x: 1, y: 1, w: 5, h: 1, fontSize: 18, color: "FF0000" });
+  // 画像を追加する場合は、以下のようにする
+  // slide1.addImage({ path: "https://upload.wikimedia.org/wikipedia/en/a/a9/Example.jpg", x: 0.5, y: 0.5, w: 8, h: 6 });
+  const base64 = await pptx.write("base64");
 
-      await goToLastSlide(); // 追加後に最後のスライドに移動
-      setMessage("Success: pptx added.");
+  await PowerPoint.run(async (context) => {
+    context.presentation.insertSlidesFromBase64(base64, {
+      formatting: PowerPoint.InsertSlideFormatting.useDestinationTheme,
     });
-  } catch (error: unknown) {
-    Rollbar.error("run", e);
-  }
+    await context.sync();
+  });
 }
 
 /**
@@ -246,7 +245,7 @@ async function clearMessage(callback: () => Promise<void>): Promise<void> {
 /**
  * メッセージを表示する。
  */
-function setMessage(message: string): void {
+async function setMessage(message: string): Promise<void> {
   const messageElement = document.getElementById("message") as HTMLElement | null;
   if (messageElement) {
     messageElement.innerText = message;
